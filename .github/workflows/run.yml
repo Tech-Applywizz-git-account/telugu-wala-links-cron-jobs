@@ -2,7 +2,7 @@ name: Run Update Cron Job
 
 on:
   schedule:
-    - cron: "30 9 * * *"  # Runs every day at 03:00 PM IST (9:30 UTC)
+    - cron: "30 5 * * *"  # Runs every day at 03:00 PM IST (9:30 UTC)
   workflow_dispatch:      # Allows manual trigger
 
 jobs:
