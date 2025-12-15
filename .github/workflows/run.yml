@@ -2,7 +2,7 @@ name: Run Update Cron Job
 
 on:
   schedule:
-    - cron: "30 5 * * *"  # Runs every day at 11:00 AM IST (5:30 UTC)
+    - cron: "30 9 * * *"  # Runs every day at 03:00 PM IST (9:30 UTC)
   workflow_dispatch:      # Allows manual trigger
 
 jobs:
@@ -23,13 +23,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run update_cron.py
+      - name: Run sync_jobs.py
         env:
           PSQL_KEY: ${{ secrets.PSQL_KEY }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          BEDROCK_MODEL_ID: ${{ secrets.BEDROCK_MODEL_ID }}
-        run: python update_cron.py
+        run: python sync_jobs.py
