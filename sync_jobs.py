@@ -1,9 +1,10 @@
 import os
+import time
 from sqlalchemy import create_engine, text
 import pandas as pd
 from supabase import create_client
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
+from datetime import datetime
 
 load_dotenv()
 
@@ -66,12 +67,9 @@ try:
         else:
             max_upload_date_dt = datetime.fromisoformat(str(max_upload_date))
         
-        # Calculate end date (max_upload_date + 1 day)
-        end_date_dt = max_upload_date_dt + timedelta(days=1)
-        
         # Format dates for SQL query
         max_upload_date_str = max_upload_date_dt.strftime('%Y-%m-%d %H:%M:%S')
-        end_date_str = end_date_dt.strftime('%Y-%m-%d %H:%M:%S')
+        end_date_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
 except Exception as e:
     print(f"Error fetching max upload date: {e}")
@@ -101,8 +99,8 @@ SELECT
 FROM "karmafy_job" j
 LEFT JOIN "karmafy_jobrole" jr
        ON j."roleId"::bigint = jr.id
-WHERE j."uploadDate" > '{max_upload_date_str}'
-  AND j."uploadDate" <= CURRENT_TIMESTAMP
+WHERE j."uploadDate" > '{max_upload_date_str}' 
+  AND j."uploadDate" <= '{end_date_str}'
 ORDER BY j."uploadDate" DESC;
 """
 
@@ -114,6 +112,8 @@ try:
     # Use text() to properly handle the SQL query
     df = pd.read_sql(text(sql_query), engine)
     print(f"Fetched {len(df):,} rows from PostgreSQL database.\n")
+    if len(df) > 5000:
+        print("Large fetch detected, check upload_date window carefully.")
 except Exception as e:
     print(f"Error fetching data from PostgreSQL: {e}")
     import traceback
@@ -147,11 +147,11 @@ for idx, row in df.iterrows():
         "description": row.get("description") if pd.notna(row.get("description")) else "",
         "apply_type": row.get("apply_type") if pd.notna(row.get("apply_type")) else None,
         "raw_text": row.get("raw_text") if pd.notna(row.get("raw_text")) else "",
-        "date_posted": row.get("date_posted").isoformat() if pd.notna(row.get("date_posted")) else None,
+        "date_posted": row.get("date_posted").isoformat() if hasattr(row.get("date_posted"), "isoformat") else row.get("date_posted"),
         "hours_back_posted": int(row.get("hours_back_posted")) if pd.notna(row.get("hours_back_posted")) else 0,
         "years_exp_required": row.get("years_exp_required") if pd.notna(row.get("years_exp_required")) else None,
-        "upload_date": row.get("upload_date").isoformat() if pd.notna(row.get("upload_date")) else None,
-        "ingested_at": row.get("ingested_at").isoformat() if pd.notna(row.get("ingested_at")) else None,
+        "upload_date": row.get("upload_date").isoformat() if hasattr(row.get("upload_date"), "isoformat") else row.get("upload_date"),
+        "ingested_at": row.get("ingested_at").isoformat() if hasattr(row.get("ingested_at"), "isoformat") else row.get("ingested_at"),
         "country": "United States of America"
     }
     
@@ -181,7 +181,7 @@ if len(jobs_data) > 0:
     
     # Insert data in batches (Supabase has limits)
     table_name = "job_jobrole_all"
-    batch_size = 1000
+    batch_size = 100
     total_inserted = 0
     total_errors = 0
     
@@ -198,8 +198,10 @@ if len(jobs_data) > 0:
                     batch_inserted = len(response.data) if response.data else 0
                     total_inserted += batch_inserted
                     print(f"✓ Batch {i // batch_size + 1}: Inserted {batch_inserted}/{len(batch)} rows")
+                    time.sleep(1)
                 except Exception as batch_error:
                     print(f"✗ Batch {i // batch_size + 1}: Error - {batch_error}")
+                    print(f"Failed job_ids: {[x['job_id'] for x in batch]}")
                     total_errors += len(batch)
         
         print()
