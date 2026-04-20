@@ -96,7 +96,9 @@ def get_max_upload_date():
 start_time = get_max_upload_date()
 
 # ✅ prevent future overflow
-now = datetime.utcnow()
+from datetime import timezone
+now = datetime.now(timezone.utc)
+
 end_time = min(start_time + WINDOW_SIZE, now)
 
 print("=" * 80)
