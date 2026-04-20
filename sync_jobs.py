@@ -1,4 +1,5 @@
 import os
+import time
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -7,6 +8,18 @@ from supabase import create_client
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# =========================
+# CONFIG (NEW)
+# =========================
+
+WINDOW_SIZE = timedelta(days=1)   # ✅ process 1 day per run
+MAX_RUNTIME_SECONDS = 540         # ✅ 9 mins max (safe for 10 min cron)
+
+CHUNK_SIZE = 2000                # ✅ reduced for speed
+SUPABASE_BATCH = 200             # ✅ reduced for speed
+
+start_execution = time.time()
 
 # =========================
 # CONNECTIONS
@@ -63,7 +76,7 @@ def get_max_upload_date():
 
         if not response.data:
             print("No existing records found → full sync")
-            return "1970-01-01 00:00:00"
+            return datetime(1970, 1, 1)
 
         raw_date = response.data[0]["upload_date"]
 
@@ -73,19 +86,25 @@ def get_max_upload_date():
             dt = raw_date
 
         print(f"Max upload date: {dt}")
-
-        return dt.strftime("%Y-%m-%d %H:%M:%S")
+        return dt
 
     except Exception as e:
         print(f"Error fetching max upload date: {e}")
-        return "1970-01-01 00:00:00"
+        return datetime(1970, 1, 1)
 
 
-max_upload_date_str = get_max_upload_date()
+start_time = get_max_upload_date()
 
+# ✅ prevent future overflow
+now = datetime.utcnow()
+end_time = min(start_time + WINDOW_SIZE, now)
+
+print("=" * 80)
+print(f"Processing window: {start_time} → {end_time}")
+print("=" * 80)
 
 # =========================
-# SQL QUERY
+# SQL QUERY (UPDATED)
 # =========================
 
 sql_query = f"""
@@ -111,8 +130,8 @@ FROM "karmafy_job" j
 LEFT JOIN "karmafy_jobrole" jr
     ON j."roleId"::bigint = jr.id
 
-WHERE j."uploadDate" > '{max_upload_date_str}'
-AND j."uploadDate" <= CURRENT_TIMESTAMP
+WHERE j."uploadDate" > '{start_time}'
+AND j."uploadDate" <= '{end_time}'
 
 ORDER BY j."uploadDate" ASC
 """
@@ -154,9 +173,6 @@ def prepare_record(row):
 # CHUNKED PROCESSING
 # =========================
 
-CHUNK_SIZE = 5000
-SUPABASE_BATCH = 500
-
 total_inserted = 0
 total_errors = 0
 
@@ -175,6 +191,12 @@ try:
         records = [prepare_record(row) for _, row in chunk_df.iterrows()]
 
         for i in range(0, len(records), SUPABASE_BATCH):
+
+            # ✅ STOP if runtime exceeds limit
+            if time.time() - start_execution > MAX_RUNTIME_SECONDS:
+                print("⏱️ Max runtime reached, stopping early")
+                raise Exception("Stopping early to avoid long cron execution")
+
             batch = records[i:i + SUPABASE_BATCH]
 
             try:
@@ -191,6 +213,8 @@ try:
                     f"✓ Chunk {chunk_number} | Batch {i//SUPABASE_BATCH + 1} | Inserted {inserted}"
                 )
 
+                time.sleep(0.1)  # ✅ prevent rate limits
+
             except Exception as batch_error:
                 total_errors += len(batch)
                 print(
@@ -198,7 +222,7 @@ try:
                 )
 
 except Exception as e:
-    print(f"Fatal sync error: {e}")
+    print(f"Stopped safely: {e}")
 
 
 # =========================
