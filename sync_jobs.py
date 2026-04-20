@@ -93,7 +93,9 @@ def get_max_upload_date():
         return datetime(1970, 1, 1)
 
 
-start_time = get_max_upload_date()
+# 🔥 FORCE BACKFILL START DATE
+start_time = datetime(2026, 2, 15, tzinfo=timezone.utc)
+
 
 # ✅ prevent future overflow
 from datetime import timezone
