@@ -93,17 +93,17 @@ def get_max_upload_date():
         print(f"Error fetching max upload date: {e}")
         return datetime(1970, 1, 1)
 
-start_time = get_max_upload_date()
+last_time = get_max_upload_date()
 
-
-
+start_time = last_time.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 # ✅ prevent future overflow
 from datetime import timezone
 now = datetime.now(timezone.utc)
 
-end_time = min(start_time + WINDOW_SIZE, now)
+end_time = start_time + timedelta(days=1)
+
 
 print("=" * 80)
 print(f"Processing window: {start_time} → {end_time}")
@@ -136,8 +136,9 @@ FROM "karmafy_job" j
 LEFT JOIN "karmafy_jobrole" jr
     ON j."roleId"::bigint = jr.id
 
-WHERE j."uploadDate" > '{start_time}'
-AND j."uploadDate" <= '{end_time}'
+WHERE j."uploadDate" >= '{start_time}'
+AND j."uploadDate" < '{end_time}'
+
 
 ORDER BY j."uploadDate" ASC
 """
