@@ -209,7 +209,7 @@ try:
             try:
                 response = (
                     supabase.table("job_jobrole_all")
-                    .insert(batch)
+                    .upsert(batch, on_conflict="job_id")
                     .execute()
                 )
 
