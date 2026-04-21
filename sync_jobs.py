@@ -93,7 +93,11 @@ def get_max_upload_date():
         print(f"Error fetching max upload date: {e}")
         return datetime(1970, 1, 1)
 
-start_time = get_max_upload_date()
+last_time = get_max_upload_date()
+
+# Move forward by full window instead of 1 second
+start_time = last_time + WINDOW_SIZE
+
 
 
 
