@@ -95,7 +95,8 @@ def get_max_upload_date():
 
 last_time = get_max_upload_date()
 
-start_time = last_time
+start_time = last_time + timedelta(seconds=1)
+
 
 
 # ✅ prevent future overflow
