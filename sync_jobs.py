@@ -93,8 +93,8 @@ def get_max_upload_date():
         print(f"Error fetching max upload date: {e}")
         return datetime(1970, 1, 1)
 
-# 🔥 FORCE BACKFILL (TEMPORARY)
-start_time = datetime(2026, 3, 22, tzinfo=timezone.utc)
+start_time = get_max_upload_date()
+
 
 
 
