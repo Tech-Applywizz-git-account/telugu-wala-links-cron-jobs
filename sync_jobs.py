@@ -95,14 +95,14 @@ def get_max_upload_date():
 
 last_time = get_max_upload_date()
 
-start_time = last_time.replace(hour=0, minute=0, second=0, microsecond=0)
+start_time = last_time
 
 
 # ✅ prevent future overflow
 from datetime import timezone
 now = datetime.now(timezone.utc)
 
-end_time = start_time + timedelta(days=1)
+end_time = min(start_time + WINDOW_SIZE, now)
 
 
 print("=" * 80)
